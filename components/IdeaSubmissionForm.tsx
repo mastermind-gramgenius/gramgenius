@@ -1,18 +1,20 @@
 "use client";
 
 import { useState, ChangeEvent, FormEvent } from "react";
-import { motion } from "framer-motion";
 
 interface FormData {
   idea: string;
-  type: string;
-  mood: string;
+  type: string;   // will be "" in upload mode
+  mood: string;   // will be "" in upload mode
   instagram: string;
   email: string;
+  userMedia?: string; // Cloudinary URL
 }
 
 export default function IdeaSubmissionForm() {
   const [submitted, setSubmitted] = useState(false);
+  const [uploadMode, setUploadMode] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     idea: "",
     type: "Surprise me!",
@@ -21,132 +23,234 @@ export default function IdeaSubmissionForm() {
     email: "",
   });
 
+  const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const UPLOAD_PRESET = "gramgenius_uploads"; // <- ensure this unsigned preset exists in Cloudinary
+
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  // Big toggle button: switch modes and normalize fields
+  const toggleMode = () => {
+    setUploadMode((prev) => {
+      const next = !prev;
+      if (next) {
+        // Going to UPLOAD mode: clear text idea & clear type/mood
+        setFormData((f) => ({
+          ...f,
+          idea: "",
+          type: "",
+          mood: "",
+        }));
+      } else {
+        // Going back to IDEA mode: clear uploaded media, restore defaults for selects
+        setFormData((f) => ({
+          ...f,
+          userMedia: undefined,
+          type: "Surprise me!",
+          mood: "Funny",
+        }));
+      }
+      return next;
+    });
+  };
+
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!CLOUD_NAME) {
+      alert("Cloud name missing. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME in .env.local");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      data.append("upload_preset", UPLOAD_PRESET); // must be an **unsigned** preset
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: "POST",
+        body: data,
+      });
+
+      const result = await res.json();
+      // Helpful logs if something goes wrong
+      if (!res.ok) {
+        console.error("Cloudinary error:", result);
+        alert(result?.error?.message || "Upload failed. Please try again.");
+        return;
+      }
+
+      if (result.secure_url) {
+        setFormData((prev) => ({ ...prev, userMedia: result.secure_url }));
+      } else {
+        console.error("Unexpected Cloudinary response:", result);
+        alert("Upload failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Upload exception:", err);
+      alert("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 4000);
+    if (isSubmitting) return; // 🧩 Prevent double submission
+    setIsSubmitting(true);
+    // When in upload mode, enforce empty type/mood on payload
+    const payload = uploadMode
+      ? { ...formData, type: "", mood: "" }
+      : formData;
+
+    try {
+      const res = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setSubmitted(true);
+        setFormData({
+          idea: "",
+          type: uploadMode ? "" : "Surprise me!",
+          mood: uploadMode ? "" : "Funny",
+          instagram: "",
+          email: "",
+          userMedia: uploadMode ? undefined : undefined,
+        });
+        setTimeout(() => setSubmitted(false), 4000);
+      } else {
+        const txt = await res.text();
+        console.error("Submit error:", txt);
+        alert("Something went wrong. Please try again.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Failed to connect to server.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="max-w-xl mx-auto p-8 bg-gray-900 text-gray-100 rounded-2xl shadow-2xl space-y-6"
+    <form
+      onSubmit={handleSubmit}
+      className="bg-white text-gray-900 p-8 rounded-2xl shadow-2xl max-w-md mx-auto space-y-5"
     >
-      <h2 className="text-3xl font-bold text-center text-white">
-        💡 Share Your Idea
-      </h2>
-      <p className="text-center text-gray-300">
-        Submit your creative idea and we’ll turn it into an Instagram post — meme, reel, or artwork.  
-        You’ll get credit if it’s published!
-      </p>
+      {/* Brand */}
+      <div className="flex items-center justify-center space-x-3 mb-2">
+        <img src="/youpost-logo.png" alt="YouPost logo" className="h-10 w-10 rounded-lg" />
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-600 bg-clip-text text-transparent">
+          YouPost
+        </h2>
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div>
-          <label className="block font-semibold mb-1 text-white">Your Idea *</label>
+      {/* Big toggle button */}
+      <button
+        type="button"
+        onClick={toggleMode}
+        className="w-full py-2 rounded-lg font-semibold text-white bg-gradient-to-r from-pink-500 via-purple-500 to-blue-600 hover:opacity-90 transition-all duration-200"
+      >
+        {uploadMode ? "💡 Submit an Idea Instead" : "📸 Upload an Image Instead"}
+      </button>
+
+      {/* Content area */}
+      {!uploadMode ? (
+        <>
           <textarea
             name="idea"
-            required
-            placeholder="Describe your idea..."
             value={formData.idea}
             onChange={handleChange}
-            className="w-full p-3 border border-gray-700 bg-gray-800 text-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-          ></textarea>
-        </div>
-
-        <div>
-          <label className="block font-semibold mb-1 text-white">
-            Preferred Post Type
-          </label>
-          <select
-            name="type"
-            value={formData.type}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-700 bg-gray-800 text-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500"
-          >
-            <option>Surprise me!</option>
-            <option>Reel</option>
-            <option>Meme</option>
-            <option>Artwork</option>
-            <option>Joke/Quote</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block font-semibold mb-1 text-white">Mood / Tone</label>
-          <select
-            name="mood"
-            value={formData.mood}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-700 bg-gray-800 text-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500"
-          >
-            <option>Funny</option>
-            <option>Thought-provoking</option>
-            <option>Aesthetic</option>
-            <option>Trendy</option>
-            <option>Emotional</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block font-semibold mb-1 text-white">
-            Your Instagram Handle
-          </label>
-          <input
-            type="text"
-            name="instagram"
-            placeholder="@yourhandle"
-            value={formData.instagram}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-700 bg-gray-800 text-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            placeholder="Describe your idea..."
+            required
+            className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:outline-none resize-none"
           />
-        </div>
-
-        <div>
-          <label className="block font-semibold mb-1 text-white">Email</label>
+          <div className="flex space-x-3">
+            <select
+              name="type"
+              value={formData.type}
+              onChange={handleChange}
+              className="flex-1 p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:outline-none"
+            >
+              <option>Surprise me!</option>
+              <option>Story</option>
+              <option>Meme</option>
+              <option>Art / Design</option>
+              <option>Photography</option>
+              <option>Educational</option>
+            </select>
+            <select
+              name="mood"
+              value={formData.mood}
+              onChange={handleChange}
+              className="flex-1 p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:outline-none"
+            >
+              <option>Funny</option>
+              <option>Inspiring</option>
+              <option>Emotional</option>
+              <option>Chill</option>
+              <option>Motivational</option>
+            </select>
+          </div>
+        </>
+      ) : (
+        <div className="space-y-3 text-center">
           <input
-            type="email"
-            name="email"
-            placeholder="you@example.com"
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full p-3 border border-gray-700 bg-gray-800 text-gray-100 rounded-xl focus:ring-2 focus:ring-indigo-500"
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg p-2 bg-gray-50"
           />
+          {uploading && <p className="text-sm text-pink-500">Uploading to Cloudinary...</p>}
+          {formData.userMedia && (
+            <img
+              src={formData.userMedia}
+              alt="Uploaded preview"
+              className="mt-3 rounded-lg max-h-48 mx-auto shadow-md"
+            />
+          )}
         </div>
+      )}
 
-        <div className="flex items-start space-x-2">
-          <input type="checkbox" required className="mt-1 accent-indigo-500" />
-          <p className="text-sm text-gray-300">
-            I agree that my idea may be published and adapted by{" "}
-            <strong>GramGenius</strong>, and that I will be credited if used.
-          </p>
-        </div>
+      <input
+        type="text"
+        name="instagram"
+        value={formData.instagram}
+        onChange={handleChange}
+        placeholder="@yourhandle"
+        className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:outline-none"
+        required
+      />
 
-        <button
-          type="submit"
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 font-semibold rounded-xl transition-all"
-        >
-          🚀 Submit My Idea
-        </button>
+      <input
+        type="email"
+        name="email"
+        value={formData.email}
+        onChange={handleChange}
+        placeholder="Email (optional)"
+        className="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:outline-none"
+      />
 
-        {submitted && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center text-green-400 font-semibold"
-          >
-            ✅ Thank you! Your idea has been submitted.
-          </motion.p>
-        )}
-      </form>
-    </motion.div>
+      <button
+        type="submit"
+        disabled={uploading || isSubmitting}
+        className="w-full py-3 rounded-lg bg-gradient-to-r from-pink-500 via-purple-500 to-blue-600 text-white font-semibold shadow-md hover:opacity-90 transition-all duration-200"
+      >
+        {isSubmitting ? "Submitting..." : uploadMode ? "Upload" : "Submit Idea"}
+      </button>
+
+      {submitted && (
+        <p className="text-green-600 text-center animate-pulse">
+          ✅ Thanks! Your submission has been received.
+        </p>
+      )}
+    </form>
   );
 }
