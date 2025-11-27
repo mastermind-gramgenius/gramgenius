@@ -82,12 +82,12 @@ export default async function CreditsPage({ params }: any) {
               {/* META */}
               <div className="mt-4">
                 <p className="text-sm text-neutral-500">
-                  Slide {slide.slideNumber}
+                  Slide {String(slide.slideNumber ?? "")}
                 </p>
 
                 {!slide.optOut ? (
                   <p className="text-lg font-semibold bg-gradient-to-r from-yellow-400 via-pink-500 to-blue-500 bg-clip-text text-transparent">
-                    ✨ @{slide.author}
+                    ✨ @{String(slide.author)}
                   </p>
                 ) : (
                   <p className="text-lg font-semibold text-neutral-600">
@@ -96,12 +96,12 @@ export default async function CreditsPage({ params }: any) {
                 )}
 
                 <p className="text-sm mt-2 text-neutral-400 italic">
-                  {slide.idea}
+                  {String(slide.idea)}
                 </p>
               </div>
 
               {/* OWNER CONTROLS */}
-              {isOwner(slide.userEmail) && (
+              {isOwner(String(slide.userEmail)) && (
                 <div className="mt-5 space-y-4 border-t border-neutral-800 pt-5">
                   {/* Remove / Restore */}
                   {!slide.optOut ? (
@@ -126,7 +126,7 @@ export default async function CreditsPage({ params }: any) {
                     <input
                       type="text"
                       name="handle"
-                      defaultValue={slide.author}
+                      defaultValue={String(slide.author)}
                       placeholder="Update handle"
                       className="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white focus:ring-2 focus:ring-pink-500 outline-none"
                     />
