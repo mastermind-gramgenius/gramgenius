@@ -70,7 +70,7 @@ Rules:
         model: "gpt-4o-mini",
         temperature: 0.3,
         response_format: { type: "json_object" },
-        messages,
+        messages: messages as any,
       });
 
       const raw = completion.choices[0].message?.content || "{}";
