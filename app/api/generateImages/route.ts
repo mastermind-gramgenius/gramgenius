@@ -1,3 +1,7 @@
+export async function POST() {
+  return Response.json({ ok: true });
+}
+
 /*import { NextResponse } from "next/server";
 import Airtable from "airtable";
 import OpenAI from "openai";
