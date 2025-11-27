@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/pipeline/full",
-      "schedule": "0 * * * *"
+      "schedule": "0 9 * * *"
     },
-    {
-      "path": "/api/cleanup",
-      "schedule": "0 3 * * *"
+     {
+      "path": "/api/pipeline/full",
+      "schedule": "0 21 * * *"
     }
   ]
 }
