@@ -37,7 +37,7 @@ export default function IdeaSubmissionForm() {
           height={90}
           className="mx-auto mb-4"
         />
-        <h2 className="text-xl font-semibold mb-4">You must log in to submit</h2>
+        <h2 className="text-xl font-semibold text-black mb-4">You must log in to submit</h2>
         <a
           href="/api/auth/signin"
           className="px-6 py-3 rounded-lg bg-gradient-to-r from-yellow-400 via-pink-500 to-blue-500 text-white font-semibold shadow-lg"
