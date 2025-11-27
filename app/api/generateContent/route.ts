@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+/*import { NextResponse } from "next/server";
 import Airtable from "airtable";
 import OpenAI from "openai";
 
@@ -95,3 +95,4 @@ Return the result as strict JSON:
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+*/

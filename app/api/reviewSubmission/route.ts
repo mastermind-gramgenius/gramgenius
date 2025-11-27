@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+/*import { NextResponse } from "next/server";
 import Airtable from "airtable";
 import OpenAI from "openai";
 
@@ -104,3 +104,4 @@ ${contentDescription}
     );
   }
 }
+*/

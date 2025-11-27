@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+/*import { NextResponse } from "next/server";
 import Airtable from "airtable";
 import OpenAI from "openai";
 import fs from "fs";
@@ -47,3 +47,4 @@ export async function GET() {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+*/
