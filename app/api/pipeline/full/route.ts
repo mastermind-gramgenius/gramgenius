@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
+  const hour = new Date().getUTCHours();
+  if (![9, 15, 21].includes(hour)) {
+    return Response.json({ skipped: true });
+  }
+
   console.log("🚀 CRON PIPELINE START");
 
   const APP = process.env.APP_URL!;
