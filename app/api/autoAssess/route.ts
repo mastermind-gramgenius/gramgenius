@@ -38,7 +38,7 @@ export async function POST() {
         })
         .join("\n\n");
 
-      const messages = [
+      const messages= [
         {
           role: "system",
           content: `
@@ -62,7 +62,7 @@ Rules:
 - Do NOT reject based on low virality; only reject unsafe content.
 `,
         },
-        { role: "user", content: ideasText },
+        { role: "user" , content: ideasText },
       ];
 
       // OpenAI call
