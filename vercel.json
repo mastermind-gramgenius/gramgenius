@@ -1,20 +1,16 @@
 {
   "crons": [
     {
-      "crons": [
-        {
-          "path": "/api/pipeline/full",
-          "schedule": "0 9 * * *"
-        }, 
-        {
-          "path": "/api/pipeline/full",
-          "schedule": "0 15 * * *"
-        }, 
-        {
-          "path": "/api/pipeline/full",
-          "schedule": "0 21 * * *"
-        } 
-      ]
+      "path": "/api/pipeline/full",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/pipeline/full",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/pipeline/full",
+      "schedule": "0 21 * * *"
     },
     {
       "path": "/api/cleanup",
