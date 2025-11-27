@@ -72,7 +72,7 @@ export default async function CreditsPage({ params }: any) {
             <div className="bg-neutral-900 rounded-3xl p-5">
               {/* IMAGE */}
               <Image
-                src={slide.image}
+                src={String(slide.image || "")}
                 width={1024}
                 height={1024}
                 alt={`Slide ${slide.slideNumber}`}
