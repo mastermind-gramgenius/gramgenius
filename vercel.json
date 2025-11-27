@@ -1,12 +1,24 @@
 {
-  "version": 2,
-  "functions": {
-    "api/**/*.ts": { "maxDuration": 300 }
-  },
   "crons": [
-    { "path": "/api/selectCarousels", "schedule": "0 15,20,1 * * *" },
-    { "path": "/api/generateCarouselImages", "schedule": "5 15,20,1 * * *" },
-    { "path": "/api/postCarousel", "schedule": "15 15,20,1 * * *" },
-    { "path": "/api/cleanup", "schedule": "0 4 * * *" }
+    {
+      "crons": [
+        {
+          "path": "/api/pipeline/full",
+          "schedule": "0 9 * * *"
+        }, 
+        {
+          "path": "/api/pipeline/full",
+          "schedule": "0 15 * * *"
+        }, 
+        {
+          "path": "/api/pipeline/full",
+          "schedule": "0 21 * * *"
+        } 
+      ]
+    },
+    {
+      "path": "/api/cleanup",
+      "schedule": "0 3 * * *"
+    }
   ]
 }

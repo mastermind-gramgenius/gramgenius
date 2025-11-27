@@ -3,60 +3,66 @@ import Airtable from "airtable";
 import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-const base = new Airtable({ apiKey: process.env.AIRTABLE_TOKEN }).base(process.env.AIRTABLE_BASE_ID!);
+const base = new Airtable({ apiKey: process.env.AIRTABLE_TOKEN }).base(
+  process.env.AIRTABLE_BASE_ID!
+);
 const TABLE = process.env.AIRTABLE_TABLE_NAME!;
 
 export async function POST() {
   try {
-    console.log("🧠 Starting optimized autoAssess...");
+    // 1️⃣ Fetch all Pending or Needs Revision submissions
     const records = await base(TABLE)
       .select({
-        filterByFormula: "OR(Status='Pending', Status='Needs Revision')",
-        maxRecords: 20, // limit batch size to prevent token overload
+        filterByFormula: "OR({Status} = 'Pending', {Status} = 'Needs Revision')",
+        maxRecords: 20,
       })
       .all();
 
-    if (!records.length) {
-      return NextResponse.json({ message: "No new records to assess." });
+    if (records.length === 0) {
+      return NextResponse.json({ message: "No submissions to assess." });
     }
 
-    // Split into batches of 5
     const batchSize = 5;
+
     for (let i = 0; i < records.length; i += batchSize) {
       const batch = records.slice(i, i + batchSize);
 
-      // Prepare short JSON instruction
       const ideasText = batch
-        .map(
-          (r, idx) =>
-            `${idx + 1}. ${r.fields.Idea || "(no idea text)"} | Type: ${r.fields.Type || "Unknown"} | Mood: ${r.fields.Mood || "Unspecified"}`
-        )
-        .join("\n");
+        .map((r, idx) => {
+          const idea = r.get("Idea") || "(no idea text)";
+          const userMedia = r.get("UserMedia")?.[0]?.url || "";
+          return `${idx + 1}. Idea: "${idea}" | Image: ${userMedia}`;
+        })
+        .join("\n\n");
 
       const messages = [
         {
           role: "system",
           content: `
-  You are a concise social media content evaluator.
-  Analyze each submission (text or image) and return just a compact JSON array with:
-  - ViralityScore (1–10)
-  - AestheticScore (1–10)
-  - SafeForPost (true/false)
-  - AssessmentExplanation (brief)
-  - AI_Theme (short, reusable theme name)
-  
-  If the content seems promotional, advertises a product, brand, company, or influencer,
-  or contains visible logos, brand names, or slogans,
-  set SafeForPost = false and clearly explain "Rejected for advertising content".
-  `,
-        }
-        ,
-        {
-          role: "user",
-          content: `Evaluate these ideas:\n${ideasText}`,
+You evaluate user-submitted content for virality and safety.
+Return ONLY JSON. No explanation outside JSON.
+
+JSON format:
+[
+  {
+    "IdeaNumber": 1,
+    "ViralityScore": 1-10,
+    "AestheticScore": 1-10,
+    "SafeForPost": true/false,
+    "AssessmentExplanation": "short reason"
+  }
+]
+
+Rules:
+- If the idea or image is promotional / a brand / a logo / an ad → SafeForPost = false.
+- If it's harmless and in line with instagram's policy → SafeForPost = true.
+- Do NOT reject based on low virality; only reject unsafe content.
+`,
         },
+        { role: "user", content: ideasText },
       ];
 
+      // OpenAI call
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         temperature: 0.3,
@@ -65,30 +71,40 @@ export async function POST() {
       });
 
       const raw = completion.choices[0].message?.content || "{}";
-      let parsed: any = {};
+      let parsed: any;
 
       try {
         parsed = JSON.parse(raw);
-      } catch (err) {
-        console.warn("⚠️ JSON parse fallback, raw:", raw);
-        continue;
+      } catch {
+        continue; // skip batch if JSON invalid
       }
 
-      const results = Array.isArray(parsed) ? parsed : parsed.results || [];
+      // 🔧 Normalize output into array
+      let results: any[] = [];
 
+      if (Array.isArray(parsed)) {
+        results = parsed;
+      } else if (Array.isArray(parsed.results)) {
+        results = parsed.results;
+      } else if (typeof parsed === "object" && parsed !== null) {
+        results = [parsed];
+      }
+
+      if (results.length === 0) continue;
+
+      // 4️⃣ Update Airtable
       for (const result of results) {
-        const record = batch[result.IdeaNumber - 1];
+        const idx = result.IdeaNumber - 1;
+        const record = batch[idx];
         if (!record) continue;
 
         const virality = Math.min(10, Math.max(1, Number(result.ViralityScore || 5)));
         const aesthetic = Math.min(10, Math.max(1, Number(result.AestheticScore || 5)));
         const safe = !!result.SafeForPost;
         const explanation = String(result.AssessmentExplanation || "").slice(0, 500);
-        const theme = String(result.AI_Theme || "Generic").slice(0, 60);
 
-        let status = "Needs Revision";
-        if (safe && virality >= 7) status = "Approved";
-        else if (!safe) status = "Rejected";
+        // Only two statuses now:
+        const status = safe ? "Approved" : "Rejected";
 
         await base(TABLE).update([
           {
@@ -98,19 +114,16 @@ export async function POST() {
               AestheticScore: aesthetic,
               SafeForPost: safe,
               AssessmentExplanation: explanation,
-              AI_Theme: theme,
               Status: status,
             },
           },
         ]);
-
-        console.log(`✅ Updated ${record.id}: ${theme} | ${status}`);
       }
     }
 
-    return NextResponse.json({ message: "Optimized auto-assessment completed." });
+    return NextResponse.json({ message: "Auto-assessment completed." });
   } catch (error: any) {
-    console.error("❌ Optimized autoAssess error:", error);
+    console.error("❌ autoAssess error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
