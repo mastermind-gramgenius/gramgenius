@@ -30,7 +30,10 @@ export async function POST() {
       const ideasText = batch
         .map((r, idx) => {
           const idea = r.get("Idea") || "(no idea text)";
-          const userMedia = r.get("UserMedia")?.[0]?.url || "";
+          const rawMedia = r.get("UserMedia");
+          const userMedia =
+            Array.isArray(rawMedia) && rawMedia[0]?.url ? rawMedia[0].url : "";
+
           return `${idx + 1}. Idea: "${idea}" | Image: ${userMedia}`;
         })
         .join("\n\n");
