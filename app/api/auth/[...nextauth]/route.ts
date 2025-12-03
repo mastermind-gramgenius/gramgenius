@@ -35,20 +35,23 @@ export const authOptions = {
     }),
   ],
 
-  callbacks: {
-    async signIn({ user, account, email, profile }) {
-      // Auto-link OAuth accounts
-      if (account && account.provider !== "email") {
-        const existingUser = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
+ callbacks: {
+  async signIn(params) {
+    const { user, account } = params;
 
-        if (existingUser) return true;
-      }
+    // Auto-link OAuth accounts to existing users with same email
+    if (account && account.provider !== "email") {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: user.email! },
+      });
 
-      return true;
-    },
+      if (existingUser) return true;
+    }
+
+    return true;
   },
+},
+
 };
 
 
