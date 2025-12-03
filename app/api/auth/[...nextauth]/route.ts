@@ -10,6 +10,36 @@ const prisma = new PrismaClient();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const authOptions = {
+  cookies: {
+    sessionToken: {
+      name: "__Secure-next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: true,
+      },
+    },
+  },
+
+  callbacks: {
+    async signIn({ user, account, profile, email }) {
+      // If it's OAuth, allow linking based on email
+      if (account?.provider !== "email") {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email! },
+        });
+
+        if (existingUser) {
+          // Allow login even if no OAuth account exists yet
+          return true;
+        }
+      }
+
+      return true;
+    },
+  },
+
   adapter: PrismaAdapter(prisma),
   secret: process.env.NEXTAUTH_SECRET,
   providers: [
