@@ -4,6 +4,7 @@ import Providers from "@/components/Providers"; // 👈 add this
 import { getServerSession } from "next-auth";
 import { authOptions } from "./api/auth/[...nextauth]/route";
 import LogoutButton from "@/components/LogoutButton";
+import DeleteAccountButton from "@/components/DeleteAccountButton";
 
 export const metadata = {
   title: "YouPost – Submit Your Ideas",
@@ -60,7 +61,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Providers>
           <main className="px-4 py-6">{children}</main>
         </Providers>
+             <footer className="mt-20 py-8 border-t border-neutral-200 text-center text-sm text-neutral-500">
+          <div className="flex flex-col items-center gap-3">
 
+            <a
+              href="/privacy-policy"
+              className="hover:text-neutral-800 transition"
+            >
+              Privacy Policy
+            </a>
+
+            <a
+              href="/delete-account"
+              className="hover:text-neutral-800 transition"
+            >
+              Delete My Account / Data Deletion
+            </a>
+
+            <p className="text-xs mt-4">© {new Date().getFullYear()} YouPost</p>
+          </div>
+        </footer>
       </body>
     </html>
   );
